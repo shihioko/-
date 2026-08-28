@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>通帳 - 家計簿</title>
+<meta name="theme-color" content="#1B2A4A">
+<meta name="description" content="クレジットカードの引き落とし管理ができる個人向け家計簿PWA">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="通帳">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== Header ===== -->
+  <header class="app-header">
+    <div>
+      <h1 id="headerTitle">通帳</h1>
+      <div class="header-sub" id="headerSub"></div>
+    </div>
+    <button class="header-action" id="headerActionBtn" style="display:none;">＋ 追加</button>
+  </header>
+
+  <!-- ===== ダッシュボード ===== -->
+  <section class="view active" id="view-dashboard">
+    <div class="cal-nav" style="margin-bottom:10px;">
+      <button id="dashPrevMonth">‹</button>
+      <div class="cal-title" id="dashMonthLabel">-</div>
+      <button id="dashNextMonth">›</button>
+    </div>
+
+    <div class="balance-block">
+      <div class="balance-label">今月の残り使える金額</div>
+      <div class="balance-amount" id="remainingAmount">¥0</div>
+      <div class="balance-sub-row">
+        <div class="balance-sub">
+          <div class="lbl">収入</div>
+          <div class="val income" id="sumIncome">¥0</div>
+        </div>
+        <div class="balance-sub">
+          <div class="lbl">支出</div>
+          <div class="val expense" id="sumExpense">¥0</div>
+        </div>
+        <div class="balance-sub">
+          <div class="lbl">予算</div>
+          <div class="val" id="sumBudget">¥0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="lbl">今月のカード引落予定</div>
+        <div class="val" id="cardDueThis">¥0</div>
+      </div>
+      <div class="stat-card">
+        <div class="lbl">翌月のカード引落予定</div>
+        <div class="val" id="cardDueNext">¥0</div>
+      </div>
+    </div>
+
+    <div class="section-title">引き落とし予定</div>
+    <div class="ledger-card" id="dueList"></div>
+
+    <div class="section-title">カテゴリ内訳（支出）</div>
+    <div class="chart-wrap">
+      <canvas id="pieChart" width="120" height="120"></canvas>
+      <div class="chart-legend" id="pieLegend"></div>
+    </div>
+
+    <div class="section-title">最近の記録</div>
+    <div class="ledger-card" id="recentList"></div>
+  </section>
+
+  <!-- ===== カレンダー ===== -->
+  <section class="view" id="view-calendar">
+    <div class="cal-nav">
+      <button id="calPrevMonth">‹</button>
+      <div class="cal-title" id="calMonthLabel">-</div>
+      <button id="calNextMonth">›</button>
+    </div>
+    <div class="cal-grid" id="calDow"></div>
+    <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+
+    <div class="day-detail">
+      <div class="section-title" id="dayDetailTitle">日付を選択</div>
+      <div class="ledger-card" id="dayDetailList"></div>
+    </div>
+  </section>
+
+  <!-- ===== カード設定 ===== -->
+  <section class="view" id="view-cards">
+    <div class="section-title">登録済みのカード</div>
+    <div id="cardList"></div>
+    <button class="btn-primary" id="addCardBtn" style="margin-top:6px;">＋ カードを追加</button>
+
+    <div class="section-title">固定費</div>
+    <div id="fixedList"></div>
+    <button class="btn-outline" id="addFixedBtn" style="width:100%; margin-top:6px;">＋ 固定費を追加</button>
+  </section>
+
+  <!-- ===== 設定 ===== -->
+  <section class="view" id="view-settings">
+    <div class="section-title">月間予算</div>
+    <div class="ledger-card">
+      <div class="form-field" style="margin-bottom:0;">
+        <label for="budgetInput">今月使ってよい上限金額（円）</label>
+        <input type="number" id="budgetInput" inputmode="numeric" placeholder="例）150000">
+      </div>
+      <button class="btn-outline" id="saveBudgetBtn" style="margin-top:12px; width:100%;">予算を保存</button>
+    </div>
+
+    <div class="section-title">カテゴリ管理（支出）</div>
+    <div class="ledger-card">
+      <div class="chip-row" id="expenseCatChips"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <input type="text" id="newExpenseCat" placeholder="新しいカテゴリ名" style="flex:1; padding:10px 12px; border:1px solid var(--paper-line); border-radius:6px; background:#FFFDF7;">
+        <button class="btn-outline" id="addExpenseCatBtn">追加</button>
+      </div>
+    </div>
+
+    <div class="section-title">カテゴリ管理（収入）</div>
+    <div class="ledger-card">
+      <div class="chip-row" id="incomeCatChips"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <input type="text" id="newIncomeCat" placeholder="新しいカテゴリ名" style="flex:1; padding:10px 12px; border:1px solid var(--paper-line); border-radius:6px; background:#FFFDF7;">
+        <button class="btn-outline" id="addIncomeCatBtn">追加</button>
+      </div>
+    </div>
+
+    <div class="section-title">データ管理</div>
+    <div class="ledger-card">
+      <p style="font-size:12.5px; color:var(--text-sub); margin-top:0;">
+        すべてのデータはこの端末のブラウザ内にのみ保存され、外部サーバーへは一切送信されません。
+      </p>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-outline" id="exportBtn" style="flex:1;">書き出す（JSON）</button>
+        <button class="btn-outline" id="importBtn" style="flex:1;">読み込む</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+      <button class="btn-text" id="resetBtn" style="margin-top:14px;">すべてのデータを削除する</button>
+    </div>
+  </section>
+
+  <!-- ===== Bottom Nav ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="dashboard">
+      <span class="icon">帳</span><span>ホーム</span>
+    </button>
+    <button class="nav-btn" data-view="calendar">
+      <span class="icon">暦</span><span>カレンダー</span>
+    </button>
+    <button class="nav-btn" data-view="cards">
+      <span class="icon">券</span><span>カード</span>
+    </button>
+    <button class="nav-btn" data-view="settings">
+      <span class="icon">設</span><span>設定</span>
+    </button>
+  </nav>
+
+  <button class="fab" id="fabAdd" title="記録を追加">＋</button>
+
+  <!-- ===== 取引入力シート ===== -->
+  <div class="sheet-overlay" id="txSheetOverlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="txSheetTitle">記録を追加</div>
+
+      <div class="segmented" id="txTypeSeg">
+        <button data-type="expense" class="active">支出</button>
+        <button data-type="income">収入</button>
+      </div>
+
+      <div class="form-field" style="margin-top:14px;">
+        <label>金額（円）</label>
+        <input type="number" id="txAmount" inputmode="numeric" placeholder="0">
+      </div>
+
+      <div class="form-field">
+        <label>日付</label>
+        <input type="date" id="txDate">
+      </div>
+
+      <div class="form-field">
+        <label>決済方法</label>
+        <select id="txMethod"></select>
+      </div>
+
+      <div class="form-field">
+        <label>カテゴリ</label>
+        <div class="chip-row" id="txCatChips"></div>
+      </div>
+
+      <div class="form-field">
+        <label>メモ（任意）</label>
+        <textarea id="txMemo" placeholder="メモを入力"></textarea>
+      </div>
+
+      <div id="txPaymentPreview" class="helper-text"></div>
+
+      <div class="sheet-actions">
+        <button class="btn-outline" id="txCancelBtn">キャンセル</button>
+        <button class="btn-primary" id="txSaveBtn">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== カード登録シート ===== -->
+  <div class="sheet-overlay" id="cardSheetOverlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="cardSheetTitle">カードを追加</div>
+
+      <div class="form-field">
+        <label>カード名</label>
+        <input type="text" id="cardName" placeholder="例）楽天カード">
+      </div>
+
+      <div class="form-field">
+        <label>締め日</label>
+        <select id="cardClosingDay"></select>
+      </div>
+
+      <div class="form-field">
+        <label>引き落とし月</label>
+        <select id="cardPayOffset">
+          <option value="0">当月</option>
+          <option value="1" selected>翌月</option>
+          <option value="2">翌々月</option>
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label>引き落とし日</label>
+        <select id="cardPaymentDay"></select>
+      </div>
+
+      <div class="helper-text" id="cardRulePreview"></div>
+
+      <div class="sheet-actions">
+        <button class="btn-outline" id="cardCancelBtn">キャンセル</button>
+        <button class="btn-primary" id="cardSaveBtn">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 固定費登録シート ===== -->
+  <div class="sheet-overlay" id="fixedSheetOverlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">固定費を追加</div>
+
+      <div class="form-field">
+        <label>名称</label>
+        <input type="text" id="fixedName" placeholder="例）家賃、Netflix">
+      </div>
+
+      <div class="form-field">
+        <label>金額（円）</label>
+        <input type="number" id="fixedAmount" inputmode="numeric" placeholder="0">
+      </div>
+
+      <div class="form-field">
+        <label>毎月の計上日</label>
+        <select id="fixedDay"></select>
+      </div>
+
+      <div class="form-field">
+        <label>決済方法</label>
+        <select id="fixedMethod"></select>
+      </div>
+
+      <div class="form-field">
+        <label>カテゴリ</label>
+        <div class="chip-row" id="fixedCatChips"></div>
+      </div>
+
+      <div class="sheet-actions">
+        <button class="btn-outline" id="fixedCancelBtn">キャンセル</button>
+        <button class="btn-primary" id="fixedSaveBtn">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="./js/app.js"></script>
+</body>
+</html>
